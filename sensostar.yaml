@@ -5,7 +5,7 @@ esphome:
     board_build.arduino.memory_type: qio_opi
   on_boot:
     then:
-      - output.turn_on: adc_control  # IO14 HIGH at boot
+      - output.turn_off: adc_control  # IO14 LOW at boot
       - script.execute: read_adc_script  # Immediately read ADC once at boot
       - lambda: |-
           if (!id(wifi_connected)) {
@@ -32,6 +32,7 @@ wifi:
 # anyway at least the api_encryption_key: section must be present in the secrets.yaml
 #  ssid: !secret wifi_ssid
 #  password: !secret wifi_password
+  power_save_mode: NONE
 
   ap:
     ssid: "SensoStar"
@@ -62,8 +63,8 @@ web_server:
   port: 80
     
 external_components:
-  - source: github://pr#8103
-    components: [uart]
+#  - source: github://pr#8103
+#    components: [uart]
   - source:
       #type: local
       #path: !secret local_path
@@ -84,13 +85,13 @@ uart:
     rx_pin: GPIO38
     baud_rate: 2400
     parity: EVEN
-    rx_full_threshold: 1
+ #   rx_full_threshold: 1
     
 SensoStar_MBus:
   id: sensostar_id
   uart_id: uart_mbus
   update_interval: 10s
-  data_led: mbus_data_led # Add this line, linking to the output below
+  data_led: mbus_data_led
 
 sensor:
   - platform: SensoStar_MBus
@@ -158,10 +159,10 @@ output:
 script:
   - id: read_adc_script
     then:
-      - output.turn_off: adc_control     # Set IO14 LOW
+      - output.turn_on: adc_control     # Set IO14 HIGH
       - delay: 8ms  # wait until the capacitor on the resistive divider is charged
       - component.update: adc_input_sensor  # Trigger ADC read
-      - output.turn_on: adc_control      # Set IO14 HIGH
+      - output.turn_off: adc_control      # Set IO14 LOW
 
   - id: ap_mode_blink
     mode: restart
