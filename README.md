@@ -82,7 +82,11 @@ Below is a visual example of the wired hardware setup.
 
 ### Web-Interface
 
-<img src="pictures/Sensostar_ESP_WebIF.png" alt="SensoStar Hardware Example" width="600px">
+<img src="pictures/Sensostar_ESP_WebIF.png" alt="SensoStar Web-Interface" width="600px">
+
+### Homeassistant-Interface
+
+<img src="pictures/HA_Dash_Sensostar.png" alt="SensoStar Homeassistant Integration" width="600px">
 
 ### Schematics
 
