@@ -6,6 +6,7 @@ esphome:
     board_build.arduino.memory_type: qio_opi
   on_boot:
     then:
+      - mqtt.disable:
       - output.turn_off: adc_control  # IO14 LOW at boot
       - script.execute: read_adc_script  # Immediately read ADC once at boot
       - lambda: |-
@@ -24,9 +25,9 @@ esp32:
 
     #type: arduino  # arduino works only if the module has at least 2MB PSRAM
     
-psram:
-  mode: octal
-  speed: 80MHz
+#psram:
+#  mode: octal
+#  speed: 80MHz
 
 wifi:
 # Uncomment this if you have ented your credentials in the secrets.yaml
@@ -55,6 +56,7 @@ logger:
 api:
 #  encryption:                                                              # uncommet if you want to use an api key  
 #    key: !secret api_encryption_key # create use openssl rand -base64 32   # uncommet if you want to use an api key  
+  reboot_timeout: 30min
     
 ota:
   platform: esphome
@@ -218,3 +220,133 @@ globals:
     restore_value: no
     initial_value: 'false'
  
+mqtt:
+   enable_on_boot: false
+   broker: ""
+   id: mqtt_broker
+   username: ""
+   password: ""
+   
+text:
+ - platform: template
+   mode: text
+   name: "1. MQTT address"
+   id: "broker_address"
+   icon: "mdi:text"
+   optimistic: true
+   internal: false
+   entity_category: config
+   initial_value: ""
+   restore_value: true
+   on_value:
+      then:
+        - logger.log:
+            format: "%s"
+            args: ["x.c_str()"]
+        - lambda: |-
+            id(mqtt_broker).set_broker_address(x.c_str());
+            ESP_LOGI("mqtt", "MQTT broker set to %s", x.c_str()); 
+        
+ - platform: template
+   mode: text
+   name: "3. MQTT Username"
+   id: "mqtt_user"
+   icon: "mdi:text"
+   optimistic: true
+   internal: false
+   entity_category: config
+   initial_value: ""
+   restore_value: true
+   on_value:
+      then:
+        - logger.log:
+            format: "%s"
+            args: ["x.c_str()"]  
+        - lambda: |-
+            id(mqtt_broker).set_username(x.c_str());  
+            ESP_LOGI("mqtt", "MQTT user set to %s", x.c_str());              
+            
+ - platform: template
+   mode: password
+   name: "4. MQTT Password"
+   id: "mqtt_pwd"
+   icon: "mdi:text"
+   optimistic: true
+   internal: false
+   entity_category: config
+   initial_value: ""
+   restore_value: true
+   on_value:
+      then:
+        - logger.log:
+            format: "%s"
+            args: ["x.c_str()"]   
+        - lambda: |-
+            id(mqtt_broker).set_password(x.c_str());
+            ESP_LOGI("mqtt", "MQTT password set to %s", x.c_str());            
+
+ - platform: template
+   mode: text
+   name: "3. MQTT Port"
+   id: "mqtt_port"
+   icon: "mdi:text"
+   optimistic: true
+   internal: false
+   entity_category: config
+   initial_value: "1886"
+   restore_value: true
+   on_value:
+      then:
+        - logger.log:
+            format: "%s"
+            args: ["x.c_str()"]  
+        - lambda: |-
+            // Convert string to integer
+            uint16_t port = (uint16_t) atoi(x.c_str());
+            // Safety check (valid range for MQTT ports)
+            if (port < 1 || port > 65535) {
+              ESP_LOGW("mqtt", "Invalid port %d, ignoring", port);
+            } else {
+              id(mqtt_broker).set_broker_port(port);
+              ESP_LOGI("mqtt", "MQTT Port set to %d", port);
+            }
+
+switch:
+  - platform: template
+    name: "MQTT Enabled"
+    id: mqtt_enabled
+    optimistic: true
+    restore_mode: "RESTORE_DEFAULT_OFF"
+    entity_category: config
+    turn_on_action:
+      - lambda: |-
+          // Get values from text/number inputs
+          std::string addr = id(broker_address).state;
+          uint16_t port = (uint16_t)atoi(id(mqtt_port).state.c_str());
+
+          // Validate broker address
+          if (addr.empty()) {
+            ESP_LOGW("mqtt", "Cannot enable MQTT: broker address is empty");
+            id(mqtt_enabled).turn_off();
+            return;
+          }
+
+          // Validate port
+          if (port < 1 || port > 65535) {
+            ESP_LOGW("mqtt", "Cannot enable MQTT: invalid port %d", port);
+            id(mqtt_enabled).turn_off();
+            return;
+          }
+
+          // All checks passed, enable MQTT
+          ESP_LOGI("mqtt", "MQTT enabled on %s:%d", addr.c_str(), port);
+          id(mqtt_broker).set_broker_address(addr.c_str());
+          id(mqtt_broker).set_broker_port(port);
+          id(mqtt_broker).set_username(id(mqtt_user).state.c_str());
+          id(mqtt_broker).set_password(id(mqtt_pwd).state.c_str());
+          id(mqtt_broker).enable();
+          
+    turn_off_action:
+      - logger.log: "MQTT disabled"
+      - mqtt.disable:
+          

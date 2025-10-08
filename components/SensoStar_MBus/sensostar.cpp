@@ -304,7 +304,7 @@ void SensoStarComponent::loop() {
                         if (tdiff == -127 || flow == -127)
                             this->calculated_power_sensor_->publish_state(NAN);
                         else if (flow > 0)
-                            this->calculated_power_sensor_->publish_state(flow / 3.6 * 4190 * tdiff);
+                            this->calculated_power_sensor_->publish_state(flow / 3.6 * 4193 * tdiff);
                         else
                             this->calculated_power_sensor_->publish_state(0);
                     }

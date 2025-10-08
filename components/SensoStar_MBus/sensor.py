@@ -3,6 +3,7 @@ import esphome.config_validation as cv
 from esphome.components import sensor
 from esphome.const import (
     CONF_ENERGY,
+    CONF_VOLUME,
     
     CONF_POWER,
     CONF_FLOW,
@@ -28,7 +29,6 @@ from esphome.const import (
 )
 from . import SensoStarComponent, CONF_SENSOSTAR_ID
 
-CONF_VOLUME = "volume"
 CONF_TEMPERATURE_FLOW = "temperature_flow"
 CONF_TEMPERATURE_RETURN = "temperature_return"
 CONF_TEMPERATURE_DIFF = "temperature_diff"
