@@ -49,11 +49,13 @@ class SensoStarComponent : public PollingComponent, public uart::UARTDevice {
   void flash_data_led_(); // function for flashing the LED on updated values
     
   std::vector<uint8_t> data_;
-  uint8_t receiving_{0};
   uint32_t last_transmission_{0};
-  bool trigger_next_;
-  bool FCB_;
+  uint16_t last_send_tx_offset_{0};
+  uint8_t receiving_{0};
   uint8_t init_state_{0};
+  bool trigger_next_{true};
+  bool FCB_;
+
   output::BinaryOutput *data_led_{nullptr}; // LED related
   uint32_t data_led_off_time_{0}; // LED related
 };

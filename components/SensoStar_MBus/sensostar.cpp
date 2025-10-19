@@ -71,15 +71,18 @@ void SensoStarComponent::loop() {
         this->data_led_off_time_ = 0;
     }
 
-    if ( this->receiving_ > 0 && ( now - this->last_transmission_ >= 500 ) ) {
+    if ( this->receiving_ > 0 && ( now - this->last_transmission_ >= 500 + this->last_send_tx_offset_ ) ) {
         ESP_LOGW(TAG, "Last transmission too long ago. Reset RX index.");
         this->publish_nans_();
         this->data_.clear();
         this->receiving_ = 0;
-        if (this->init_state_ < 5) {
+        if (this->init_state_ != 0xff)
             this->trigger_next_ = true;
         }
-    }
+    
+    // Trigger initialization sequence
+    if (this->init_state_ != 0xff && this->init_state_&0x10 && now - this->last_transmission_ >= 20)
+        this->trigger_next_ = true;
   
     if ( available() )
         this->last_transmission_ = now;
@@ -88,12 +91,16 @@ void SensoStarComponent::loop() {
         uint8_t c;
         read_byte(&c);
         
-        if (this->init_state_ < 5) {
-            ESP_LOGV(TAG, "M-Bus received: %02x", c);
-            continue;
-        }
         
         if (this->receiving_ != 2) {
+            if (c == 0xe5) {
+                // Acknowledge
+                this->data_.clear();
+                this->receiving_ = 0;
+                
+                if (this->init_state_ != 0xff)
+                    this->init_state_ |= 0x10;
+            }
             if (c != 0x68)
                 continue;
                 
@@ -126,6 +133,10 @@ void SensoStarComponent::loop() {
                 if (checksum != this->data_[this->data_.size()-2]){
                     this->publish_nans_();
                     ESP_LOGW(TAG, "Invalid checksum");
+                }
+                else if (this->init_state_ != 0xff){
+                    // Initialization sequence
+                    this->init_state_ |= 0x10;
                 }
                 else if (this->data_[4] != 0x08 || this->data_[6] != 0x72 ){
                     this->publish_nans_();
@@ -320,32 +331,51 @@ void SensoStarComponent::loop() {
     
     if (this->trigger_next_) {
         this->trigger_next_ = false;
-        this->receiving_ = 1;
-        this->last_transmission_ = now;
 
         this->flush();
         this->data_.clear();
         
-        if (this->init_state_ == 0){
+        if (this->init_state_ == 0x00 || this->init_state_ == 0x01){
             uint8_t request_message[] = { 0x68, 0x08, 0x08, 0x68, 0x53, 0xFE, 0x51, 0x0F, 0x00, 0x00, 0x04, 0x5C, 0x11, 0x16 };
             ESP_LOGV(TAG, "M-Bus write: %s", format_hex_pretty(request_message, sizeof(request_message)).c_str());
             this->write_array(request_message, sizeof(request_message));
-            this->init_state_ += 1;
+            this->last_transmission_ = now;
+            this->last_send_tx_offset_ = sizeof(request_message) * 11 * 1000 / 2400;
+            this->receiving_ = 1;
+            this->init_state_ = 0x01;
+            
         }
-        else if (this->init_state_ == 1){
+        else if (this->init_state_ == 0x11 || this->init_state_ == 0x02){
             uint8_t request_message[] = { 0x68, 0x09, 0x09, 0x68, 0x53, 0xFE, 0x51, 0x0F, 0x00, 0x00, 0x00, 0x59, 0x2D, 0x37, 0x16 };
             ESP_LOGV(TAG, "M-Bus write: %s", format_hex_pretty(request_message, sizeof(request_message)).c_str());
             this->write_array(request_message, sizeof(request_message));
-            this->init_state_ += 1;
+            this->last_transmission_ = now;
+            this->last_send_tx_offset_ = sizeof(request_message) * 11 * 1000 / 2400;
+            this->receiving_ = 1;
+            this->init_state_ = 0x02;
         }
-        else if (this->init_state_ == 2){
+        else if (this->init_state_ == 0x12 || this->init_state_ == 0x03){
             uint8_t request_message[] = { 0x68, 0x08, 0x08, 0x68, 0x73, 0xFE, 0x51, 0x0F, 0x00, 0x00, 0x00, 0x5D, 0x2E, 0x16 };
             ESP_LOGV(TAG, "M-Bus write: %s", format_hex_pretty(request_message, sizeof(request_message)).c_str());
             this->write_array(request_message, sizeof(request_message));
-            this->init_state_ += 1;
+            this->last_transmission_ = now;
+            this->last_send_tx_offset_ = sizeof(request_message) * 11 * 1000 / 2400;
+            this->receiving_ = 1;
+            this->init_state_ = 0x03;
         }
-        else if (this->init_state_ == 3){
-            uint8_t request_message[] = { 0x68, 0x73, 0x73, 0x68, 0x53, 0xFE, 0x51, 0x0F, 0x00, 0x00, 0x06, 0x5C, 0x09, 0x02, 0x00, 0x00, 0x8f, 0xad, 0xce, 0xe5, 0xc7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x99, 0x16};
+        else if (this->init_state_ == 0x13 || this->init_state_ == 0x04){
+            uint8_t request_message[] = { 0x68, 0x73, 0x73, 0x68, 0x53, 0xFE, 0x51, 0x0F, 0x00, 0x00, 0x06, 0x5C, 0x09, 0x02, 0x00, 0x00, 
+                0x8f, 0xad, 0xce, 0xe5, 0xc7, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x99, 0x16};
             // Checksum
             uint8_t checksum = 0;
             for (uint8_t i = 4; i < sizeof(request_message)-2; i++)
@@ -354,16 +384,24 @@ void SensoStarComponent::loop() {
             
             ESP_LOGV(TAG, "M-Bus write: %s", format_hex_pretty(request_message, sizeof(request_message)).c_str());
             this->write_array(request_message, sizeof(request_message));
-            this->init_state_ += 1;
+            this->last_transmission_ = now;
+            this->last_send_tx_offset_ = sizeof(request_message) * 11 * 1000 / 2400;
+            this->receiving_ = 1;
+            this->init_state_ = 0x04;
         }
-        else if (this->init_state_ == 4){
+        else if (this->init_state_ == 0x14 || this->init_state_ == 0x05){
             uint8_t request_message[] = { 0x68, 0x09, 0x09, 0x68, 0x53, 0xFE, 0x51, 0x0F, 0x00, 0x00, 0x00, 0x59, 0x0C, 0x16, 0x16};
             ESP_LOGV(TAG, "M-Bus write: %s", format_hex_pretty(request_message, sizeof(request_message)).c_str());
             this->write_array(request_message, sizeof(request_message));
-            this->init_state_ += 1;
+            this->last_transmission_ = now;
+            this->last_send_tx_offset_ = sizeof(request_message) * 11 * 1000 / 2400;
+            this->receiving_ = 1;
+            this->init_state_ = 0x05;
+        }
+        else if (this->init_state_ == 0x15){
+            this->init_state_ = 0xff;
         }
         else {
-            this->init_state_ = 0xff;
             uint8_t request_message[] = { 0x68, 0x11, 0x11, 0x68, 0x53, 0xFE, 0x51, 0x0F, 0x00, 0x00, 0x01, 0x59, 0x02, 0x03, 0x04, 0x06, 0x05, 0x07, 0x08, 0x09, 0x0B, 0x00, 0x16 };
         
 
@@ -380,6 +418,9 @@ void SensoStarComponent::loop() {
 
             ESP_LOGV(TAG, "M-Bus write: %s", format_hex_pretty(request_message, sizeof(request_message)).c_str());
             this->write_array(request_message, sizeof(request_message));
+            this->last_transmission_ = now;
+            this->last_send_tx_offset_ = sizeof(request_message) * 11 * 1000 / 2400;
+            this->receiving_ = 1;
         }
 
     }
