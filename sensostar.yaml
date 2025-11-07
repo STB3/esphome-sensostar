@@ -2,6 +2,7 @@ esphome:
   name: sensostar
   name_add_mac_suffix: true
   comment: SensoStar Energy Meter
+  friendly_name: ESPHome Sensostar
   platformio_options:
     board_build.arduino.memory_type: qio_opi
   on_boot:
@@ -13,8 +14,8 @@ esphome:
           if (!id(wifi_connected)) {
             id(ap_mode_blink).execute();
           }
-#          id(api_key_text).publish_state("${api_key_display}");    # uncommet if you want to use an api key   
-    
+#          id(api_key_text).publish_state("${api_key_display}");    # uncommet if you want to use an api key
+
 esp32:
   board: esp32-s3-devkitc-1
   flash_size: 8MB
@@ -24,7 +25,7 @@ esp32:
       CONFIG_SPIRAM_SUPPORT: "n"
 
     #type: arduino  # arduino works only if the module has at least 2MB PSRAM
-    
+
 #psram:
 #  mode: octal
 #  speed: 80MHz
@@ -37,8 +38,8 @@ wifi:
   power_save_mode: NONE
   ap:
     ssid: "Sensostar"
-  reboot_timeout: 0s 
-  
+  reboot_timeout: 0s
+
   on_connect:
     - script.stop: ap_mode_blink
     - output.turn_on: wifi_led
@@ -47,10 +48,10 @@ wifi:
          ESP_LOGI("wifi", "Wi-Fi connected and MQTT switch is ON — enabling MQTT");
          id(mqtt_broker).enable();
        }
-       
+
   on_disconnect:
     - script.execute: ap_mode_blink
-    
+
 captive_portal:
 
 logger:
@@ -58,19 +59,18 @@ logger:
   hardware_uart: UART0
   baud_rate: 115200
 
-api:    
-#  encryption:                                                              # uncommet if you want to use an api key  
-#    key: !secret api_encryption_key # create use openssl rand -base64 32   # uncommet if you want to use an api key  
+api:
+#  encryption:                                                              # uncommet if you want to use an api key
+#    key: !secret api_encryption_key # create use openssl rand -base64 32   # uncommet if you want to use an api key
   reboot_timeout: 600min
-  
+
 ota:
   platform: esphome
-    
+
 web_server:
   version: 3
   port: 80
 
-    
 external_components:
 #  - source: github://pr#8103
 #    components: [uart]
@@ -78,7 +78,7 @@ external_components:
       #type: local
       #path: !secret local_path
       type: git                                         # Be careful ESPhome is caching the repository. Do the following to update the cache
-      url: https://github.com/STB3/esphome-sensostar    # Deleting the .esphome/external_components/ cache, or 
+      url: https://github.com/STB3/esphome-sensostar    # Deleting the .esphome/external_components/ cache, or
       ref: main  # or a specific commit SHA             # Using a ref: to pin to a specific commit or branch.
     components: [ SensoStar_MBus ]
 
@@ -94,7 +94,7 @@ uart:
     rx_pin: GPIO38
     baud_rate: 2400
     parity: EVEN
-    
+
 SensoStar_MBus:
   id: sensostar_id
   uart_id: uart_mbus
@@ -124,7 +124,7 @@ sensor:
       name: "SensoStar Temperature Difference"
     calculated_power:
       name: "SensoStar Calculated Power"
-      
+
   - platform: adc
     pin: GPIO1
     id: adc_input_sensor
@@ -136,7 +136,7 @@ sensor:
   - platform: wifi_signal
     name: "SensoStar WiFi Signal"
     id: wifi_signal_sensor
-    update_interval: 60s      
+    update_interval: 60s
 
 substitutions:
   api_key_display: !secret api_encryption_key
@@ -145,15 +145,15 @@ text_sensor:
   - platform: SensoStar_MBus
     status:
       name: "SensoStar Status"
-      
-# Show API encryption key in the web interface    
-#  - platform: template                         # uncommet if you want to use an api key  
-#    name: "API Encryption Key"                 # uncommet if you want to use an api key  
-#    id: api_key_text                           # uncommet if you want to use an api key  
-#    entity_category: config                    # uncommet if you want to use an api key  
-#    lambda: |-                                 # uncommet if you want to use an api key  
-#      return std::string("${api_key_display}");# uncommet if you want to use an api key  
-#    update_interval: never                     # uncommet if you want to use an api key  
+
+# Show API encryption key in the web interface
+#  - platform: template                         # uncommet if you want to use an api key
+#    name: "API Encryption Key"                 # uncommet if you want to use an api key
+#    id: api_key_text                           # uncommet if you want to use an api key
+#    entity_category: config                    # uncommet if you want to use an api key
+#    lambda: |-                                 # uncommet if you want to use an api key
+#      return std::string("${api_key_display}");# uncommet if you want to use an api key
+#    update_interval: never                     # uncommet if you want to use an api key
 
 output:
   - platform: gpio
@@ -167,11 +167,11 @@ output:
     id: wifi_led
   - platform: gpio
     pin: GPIO41
-    id: mbus_data_led   
-  - platform: gpio          
+    id: mbus_data_led
+  - platform: gpio
     pin: GPIO40
-    id: mbus_yellow_led    
- 
+    id: mbus_yellow_led
+
 script:
   - id: read_adc_script
     then:
@@ -191,7 +191,7 @@ script:
             - output.turn_on: wifi_led
             - delay: 200ms
             - output.turn_off: wifi_led
-            - delay: 1000ms  
+            - delay: 1000ms
 
 interval:
   - interval: 600s
@@ -201,7 +201,7 @@ interval:
     then:
       - light.turn_on: heartbeat_led
       - delay: 500ms
-      - light.turn_off: heartbeat_led      
+      - light.turn_off: heartbeat_led
 
 button:
   - platform: template
@@ -213,33 +213,33 @@ button:
     name: "Read WiFi Signal now"
     on_press:
       then:
-        - component.update: wifi_signal_sensor        
-        
+        - component.update: wifi_signal_sensor
+
 light:
   - platform: binary
     id: heartbeat_led
     output: heartbeat_output
     internal: true  # hide from Home Assistant unless needed
-    
+
 binary_sensor:
   - platform: status
     name: "ESP Status"
     id: esp_status
-    internal: true  # hide from Home Assistant unless needed    
+    internal: true  # hide from Home Assistant unless needed
 
 globals:
   - id: wifi_connected
     type: bool
     restore_value: no
     initial_value: 'false'
-    
+
 mqtt:
-   enable_on_boot: false
-   broker: ""
-   id: mqtt_broker
-   username: ""
-   password: ""
-   
+  enable_on_boot: false
+  broker: "127.0.0.1"  # dummy, will be set via text input, should be fix STB3/esphome-sensostar#3
+  id: mqtt_broker
+  username: ""
+  password: ""
+
 text:
  - platform: template
    mode: text
@@ -258,8 +258,8 @@ text:
             args: ["x.c_str()"]
         - lambda: |-
             id(mqtt_broker).set_broker_address(x.c_str());
-            ESP_LOGI("mqtt", "MQTT broker set to %s", x.c_str()); 
-        
+            ESP_LOGI("mqtt", "MQTT broker set to %s", x.c_str());
+
  - platform: template
    mode: text
    name: "3. MQTT Username"
@@ -274,11 +274,11 @@ text:
       then:
         - logger.log:
             format: "%s"
-            args: ["x.c_str()"]  
+            args: ["x.c_str()"]
         - lambda: |-
-            id(mqtt_broker).set_username(x.c_str());  
-            ESP_LOGI("mqtt", "MQTT user set to %s", x.c_str());              
-            
+            id(mqtt_broker).set_username(x.c_str());
+            ESP_LOGI("mqtt", "MQTT user set to %s", x.c_str());
+
  - platform: template
    mode: password
    name: "4. MQTT Password"
@@ -293,10 +293,10 @@ text:
       then:
         - logger.log:
             format: "%s"
-            args: ["x.c_str()"]   
+            args: ["x.c_str()"]
         - lambda: |-
             id(mqtt_broker).set_password(x.c_str());
-            ESP_LOGI("mqtt", "MQTT password set to %s", x.c_str());            
+            ESP_LOGI("mqtt", "MQTT password set to %s", x.c_str());
 
  - platform: template
    mode: text
@@ -312,7 +312,7 @@ text:
       then:
         - logger.log:
             format: "%s"
-            args: ["x.c_str()"]  
+            args: ["x.c_str()"]
         - lambda: |-
             // Convert string to integer
             uint16_t port = (uint16_t) atoi(x.c_str());
@@ -331,13 +331,13 @@ switch:
     optimistic: true
     restore_mode: "RESTORE_DEFAULT_OFF"
     entity_category: config
-    
+
     turn_off_action:
       - logger.log: "MQTT disabled"
       - mqtt.disable:
       - lambda: |-
             ESP_LOGI("mqtt", "MQTT: disabled.");
-      
+
     turn_on_action:
       - lambda: |-
           // Get values from text/number inputs
@@ -368,4 +368,3 @@ switch:
           App.scheduler.set_timeout(nullptr, "mqtt_enable", 1000, []() {
           id(mqtt_broker).enable(); });
           return;
-
