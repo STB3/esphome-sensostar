@@ -39,9 +39,14 @@ This ESPHome integration enables reading detailed heat consumption data from Eng
 ## 🧪 Requirements
 
 - ESP32-S3 DevKitC-1 (8MB Flash)
-- Engelmann SensoStar U meter without any optional interfaces
 - ESPHome installed on your system
 - Home Assistant (optional but recommended)
+- Sensostar Heatmeter the following have been confirmed to be working
+  - SensoStar U (Engelmann)
+  - SensoStar E (Engelmann)
+  - Volumess VI E (Wasser-Geräte)
+  - microCLIMA EVO (Maddalena)
+  - microCLIMA U (Maddalena)
 
 ---
 
