@@ -47,6 +47,9 @@ This ESPHome integration enables reading detailed heat consumption data from Eng
   - Volumess VI E (Wasser-Geräte)
   - microCLIMA EVO (Maddalena)
   - microCLIMA U (Maddalena)
+  
+**Check compatibility:**
+<img src="pictures/sensostar_compatibility.png" alt="SensoStar compatible devices" width="800px">
 
 ---
 
