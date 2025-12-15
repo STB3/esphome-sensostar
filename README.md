@@ -49,6 +49,7 @@ This ESPHome integration enables reading detailed heat consumption data from Eng
   - microCLIMA U (Maddalena)
   
 **Check compatibility:**
+Only uints with *Module* are working.
 <img src="pictures/sensostar_compatibility.png" alt="SensoStar compatible devices" width="800px">
 
 ---
