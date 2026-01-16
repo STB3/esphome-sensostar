@@ -48,6 +48,7 @@ This ESPHome integration enables reading detailed heat consumption data from Eng
   - microCLIMA EVO (Maddalena)
   - microCLIMA U (Maddalena)
   - Brummerhoop F90U3
+  - Molline Wingman C3
   
 **Check compatibility:**
 Only uints with *Modul* are working.
