@@ -47,6 +47,7 @@ This ESPHome integration enables reading detailed heat consumption data from Eng
   - Volumess VI E (Wasser-Geräte)
   - microCLIMA EVO (Maddalena)
   - microCLIMA U (Maddalena)
+  - Brummerhoop F90U3
   
 **Check compatibility:**
 Only uints with *Modul* are working.
