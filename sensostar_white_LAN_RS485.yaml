@@ -1,0 +1,489 @@
+# ============================================================
+# sensostar_white_LAN_RS485.yaml - ESP32-C6 / Wired LAN (W5500) with SDM630 RS485
+# Build and upload: esphome run sensostar_white_LAN_RS485.yaml
+#
+# This build uses the same ESP32-C6 board as sensostar_red.yaml. The W5500
+# connects through the FFC adapter board. Its SPI pins (CLK/MISO/MOSI/CS/INT/RST)
+# are configured in packages/sensostar_eth.yaml, not in this file.
+# ============================================================
+
+esphome:
+  name: sensostar-v3-lan
+  name_add_mac_suffix: true
+  comment: SensoStar Energy Meter
+  platformio_options:
+    board_build.arduino.memory_type: qio_opi
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+    on_time:
+      - seconds: 0
+        minutes: 0
+        hours: 0
+        then:
+          - lambda: |-
+              id(cop_daily_min) = 99.0f;
+              id(cop_daily_max) = 0.0f;
+              id(cop_daily_sum) = 0.0f;
+              id(cop_daily_count) = 0;
+              id(net_cop_daily_count) = 0;
+
+
+# ----- ESP32-C6 configuration -------------------------------
+esp32:
+  variant: esp32c6
+  flash_size: 4MB
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_ESP_CONSOLE_UART_NONE: "y"
+      CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG: "n"
+      CONFIG_USJ_ENABLE_USB_SERIAL_JTAG: "n"
+
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+  - platform: esphome
+    id: my_ota
+    password: !secret ota_password
+
+logger:
+  baud_rate: 0 # Disable serial logging to free GPIO12 and GPIO13 for the SDM630 UART
+  hardware_uart: UART0
+
+# ----- Board-specific pin mapping (ESP32-C6) ----------------
+# The W5500 SPI pins are configured separately in packages/sensostar_eth.yaml.
+substitutions:
+  pin_uart_tx:     GPIO6
+  pin_uart_rx:     GPIO7
+  pin_adc_input:   GPIO1
+  pin_adc_control: GPIO14
+  pin_heartbeat:   GPIO4
+  pin_wifi_led:    GPIO3   # Ethernet link status on the LAN variant
+  pin_mbus_data:   GPIO2
+  pin_mbus_yellow: GPIO5
+  pin_sdm_tx: GPIO13
+  pin_sdm_rx: GPIO12
+
+  device1: SDM630
+  device2: heatpump
+
+
+uart:
+  - id: uart_sdm
+    tx_pin: ${pin_sdm_tx}
+    rx_pin:
+      number: ${pin_sdm_rx}
+      mode:
+        input: true
+        pullup: true
+    baud_rate: 38400
+    rx_buffer_size: 256
+    parity: NONE
+
+
+modbus:
+  - id: modbus1
+    uart_id: uart_sdm
+
+
+globals:
+  - id: cop_daily_min
+    type: float
+    restore_value: yes
+    initial_value: '99.0'
+  - id: cop_daily_max
+    type: float
+    restore_value: yes
+    initial_value: '0.0'
+  - id: cop_daily_sum
+    type: float
+    restore_value: yes
+    initial_value: '0.0'
+  - id: cop_daily_count
+    type: int
+    restore_value: yes
+    initial_value: '0'
+  - id: net_cop_daily_min
+    type: float
+    restore_value: yes
+    initial_value: '0.0'
+  - id: net_cop_daily_max
+    type: float
+    restore_value: yes
+    initial_value: '0.0'
+  - id: net_cop_daily_count
+    type: int
+    restore_value: yes
+    initial_value: '0'
+
+
+
+sensor:
+  - platform: sdm_meter
+    modbus_id: modbus1
+    address: 20
+    update_interval: 2s
+    phase_a:
+      current:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:    "${device1} L1 Current"
+      voltage:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:  "${device1} L1 Voltage"
+      active_power:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:  "${device1} L1 Power"
+      power_factor:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:  "${device1} L1 Power Factor"
+      apparent_power:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:  "${device1} L1 Apparent Power"
+      reactive_power:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:  "${device1} L1 Reactive Power"
+      phase_angle:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:  "${device1} L1 Phase Angle"
+    phase_b:
+      current:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:  "${device1} L2 Current"
+      voltage:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:    "${device1} L2 Voltage"
+      active_power:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:    "${device1} L2 Power"
+      power_factor:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:    "${device1} L2 Power Factor"
+      apparent_power:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:    "${device1} L2 Apparent Power"
+      reactive_power:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:    "${device1} L2 Reactive Power"
+      phase_angle:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:    "${device1} L2 Phase Angle"
+    phase_c:
+      current:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:    "${device1} L3 Current"
+      voltage:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:    "${device1} L3 Voltage"
+      active_power:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:    "${device1} L3 Power"
+      power_factor:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:    "${device1} L3 Power Factor"
+      apparent_power:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:    "${device1} L3 Apparent Power"
+      reactive_power:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:    "${device1} L3 Reactive Power"
+      phase_angle:
+        state_topic:
+        filters:
+          - throttle_average: 10s
+        name:    "${device1} L3 Phase Angle"
+    frequency:
+      state_topic:
+      filters:
+        - throttle_average: 20s
+      name: "${device1} Frequency"
+    total_power:
+      id: sdm_total_power
+      state_topic:
+      name: "${device1} Total Power"
+    import_active_energy:
+      state_topic:
+      filters:
+        - max:
+            window_size: 60
+            send_every: 60
+            send_first_at: 60
+      name: "${device1} Import Active Energy"
+    export_active_energy:
+      state_topic:
+      filters:
+        - max:
+            window_size: 60
+            send_every: 60
+            send_first_at: 60
+      name: "${device1} Export Active Energy"
+    import_reactive_energy:
+      state_topic:
+      filters:
+        - max:
+            window_size: 60
+            send_every: 60
+            send_first_at: 60
+      name: "${device1} Import Reactive Energy"
+    export_reactive_energy:
+      state_topic:
+      filters:
+        - max:
+            window_size: 60
+            send_every: 60
+            send_first_at: 60
+      name: "${device1} Export Reactive Energy"
+
+
+  # ----- Deicing calculation ---------------------------------
+  - platform: template
+    id: deicing_power
+    name: "${device2} Deicing Power"
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: 10s
+    lambda: |-
+      if (id(calculated_power).has_state() && id(calculated_power).state < 0.0f) {
+        return -id(calculated_power).state;
+      }
+      return 0.0f;
+
+  - platform: integration
+    id: deicing_energy
+    name: "${device2} Deicing Energy"
+    sensor: deicing_power
+    time_unit: h
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 3
+    restore: true
+    integration_method: trapezoid
+    filters:
+      - multiply: 0.001
+
+
+  - platform: total_daily_energy
+    id: deicing_energy_daily
+    name: "${device2} Daily Deicing Energy"
+    power_id: deicing_power
+    time_id: homeassistant_time
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 3
+    restore: true
+    method: trapezoid
+    filters:
+      - multiply: 0.001
+
+
+
+  # ----- COP calculation (live and daily statistics) --------
+  - platform: template
+    id: live_cop
+    name: "${device2} Live COP - Heat Only"
+    icon: mdi:heat-pump
+    state_class: measurement
+    accuracy_decimals: 2
+    update_interval: 10s
+    lambda: |-
+      if (!id(sensostar_power).has_state() || !id(calculated_power).has_state() ||
+          !id(sdm_total_power).has_state() || !std::isfinite(id(calculated_power).state) ||
+          id(calculated_power).state < 0.0f) {
+        return NAN;
+      }
+      float thermal_w = id(sensostar_power).state;
+      float elec_w = id(sdm_total_power).state;
+      // Calculate COP only above 100 W electrical input and with positive thermal output.
+      if (elec_w > 100.0f && thermal_w > 0.0f) {
+        float cop = thermal_w / elec_w;
+        if (cop > 12.0f) return NAN;
+
+        // Update the daily COP statistics.
+        if (cop < id(cop_daily_min)) id(cop_daily_min) = cop;
+        if (cop > id(cop_daily_max)) id(cop_daily_max) = cop;
+        id(cop_daily_sum) += cop;
+        id(cop_daily_count) += 1;
+
+        return cop;
+      }
+      return NAN;
+
+  - platform: template
+    id: daily_cop_avg
+    name: "${device2} Daily COP Average - Heat Only"
+    icon: mdi:heat-pump
+    state_class: measurement
+    accuracy_decimals: 2
+    update_interval: 10s
+    lambda: |-
+      if (id(cop_daily_count) == 0) return NAN;
+      return id(cop_daily_sum) / id(cop_daily_count);
+
+  - platform: template
+    id: daily_cop_min
+    name: "${device2} Daily COP Min - Heat Only"
+    icon: mdi:heat-pump
+    state_class: measurement
+    accuracy_decimals: 2
+    update_interval: 10s
+    lambda: |-
+      if (id(cop_daily_count) == 0) return NAN;
+      return id(cop_daily_min);
+
+  - platform: template
+    id: daily_cop_max
+    name: "${device2} Daily COP Max - Heat Only"
+    icon: mdi:heat-pump
+    state_class: measurement
+    accuracy_decimals: 2
+    update_interval: 10s
+    lambda: |-
+      if (id(cop_daily_count) == 0) return NAN;
+      return id(cop_daily_max);
+
+  - platform: template
+    id: net_thermal_power
+    internal: true
+    unit_of_measurement: "W"
+    update_interval: 10s
+    lambda: |-
+      if (!id(calculated_power).has_state() || !id(sensostar_power).has_state() ||
+          !std::isfinite(id(calculated_power).state) || !std::isfinite(id(sensostar_power).state)) {
+        return NAN;
+      }
+      if (id(calculated_power).state < 0.0f) return id(calculated_power).state;
+      return std::max(0.0f, id(sensostar_power).state);
+
+  - platform: template
+    id: live_net_cop
+    name: "${device2} Live COP"
+    icon: mdi:heat-pump
+    state_class: measurement
+    accuracy_decimals: 2
+    update_interval: 10s
+    lambda: |-
+      if (!id(net_thermal_power).has_state() || !id(sdm_total_power).has_state() ||
+          !std::isfinite(id(net_thermal_power).state) || !std::isfinite(id(sdm_total_power).state) ||
+          id(sdm_total_power).state <= 0.0f) {
+        return NAN;
+      }
+      float cop = id(net_thermal_power).state / id(sdm_total_power).state;
+      if (!std::isfinite(cop)) return NAN;
+      if (id(net_cop_daily_count) == 0 || cop < id(net_cop_daily_min)) id(net_cop_daily_min) = cop;
+      if (id(net_cop_daily_count) == 0 || cop > id(net_cop_daily_max)) id(net_cop_daily_max) = cop;
+      id(net_cop_daily_count) += 1;
+      return cop;
+
+  - platform: template
+    id: daily_net_cop_min
+    name: "${device2} Daily COP Min"
+    icon: mdi:heat-pump
+    state_class: measurement
+    accuracy_decimals: 2
+    update_interval: 10s
+    lambda: |-
+      if (id(net_cop_daily_count) == 0) return NAN;
+      return id(net_cop_daily_min);
+
+  - platform: template
+    id: daily_net_cop_max
+    name: "${device2} Daily COP Max"
+    icon: mdi:heat-pump
+    state_class: measurement
+    accuracy_decimals: 2
+    update_interval: 10s
+    lambda: |-
+      if (id(net_cop_daily_count) == 0) return NAN;
+      return id(net_cop_daily_max);
+
+  - platform: total_daily_energy
+    id: net_thermal_energy_daily
+    internal: true
+    power_id: net_thermal_power
+    time_id: homeassistant_time
+    restore: true
+    method: trapezoid
+
+  - platform: total_daily_energy
+    id: electrical_energy_daily
+    internal: true
+    power_id: sdm_total_power
+    time_id: homeassistant_time
+    restore: true
+    method: trapezoid
+
+  - platform: template
+    id: daily_net_cop
+    name: "${device2} Daily COP Average"
+    icon: mdi:heat-pump
+    state_class: measurement
+    accuracy_decimals: 2
+    update_interval: 10s
+    lambda: |-
+      if (!id(net_thermal_energy_daily).has_state() || !id(electrical_energy_daily).has_state() ||
+          !id(net_thermal_power).has_state() || !id(sdm_total_power).has_state() ||
+          !std::isfinite(id(net_thermal_power).state) || !std::isfinite(id(sdm_total_power).state) ||
+          !std::isfinite(id(net_thermal_energy_daily).state) ||
+          !std::isfinite(id(electrical_energy_daily).state) || id(electrical_energy_daily).state <= 0.0f) {
+        return NAN;
+      }
+      return id(net_thermal_energy_daily).state / id(electrical_energy_daily).state;
+
+
+
+
+
+
+
+
+# ----- Module -----------------------------------------------
+packages:
+  base:         !include packages/sensostar_base.yaml
+  connectivity: !include packages/sensostar_eth.yaml

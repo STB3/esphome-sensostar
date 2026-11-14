@@ -87,6 +87,7 @@ sensor:
     volume:
       name: "SensoStar Volume"
     power:
+      id: sensostar_power
       name: "SensoStar Power"
     flow:
       name: "SensoStar Flow"
@@ -96,8 +97,9 @@ sensor:
       name: "SensoStar Return Temperature"
     temperature_diff:
       name: "SensoStar Temperature Difference"
-#    calculated_power:
-#      name: "SensoStar Calculated Power"
+    calculated_power:
+      id: calculated_power
+      name: "SensoStar Calculated Power"
 
   - platform: adc
     pin: ${pin_adc_input}
